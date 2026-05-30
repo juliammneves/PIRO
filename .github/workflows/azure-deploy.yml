@@ -49,6 +49,22 @@ jobs:
           chmod +x startup.sh
           echo "✓ startup.sh marked executable"
 
+      - name: Generate build info
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          cat > build_info.json <<EOF
+          {
+            "commit_sha": "${{ github.sha }}",
+            "commit_short": "${GITHUB_SHA:0:7}",
+            "branch": "${{ github.ref_name }}",
+            "timestamp": "${{ github.event.head_commit.timestamp }}",
+            "run_number": "${{ github.run_number }}",
+            "actor": "${{ github.actor }}"
+          }
+          EOF
+          echo "✓ build_info.json gerado:"
+          cat build_info.json
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:

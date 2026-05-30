@@ -6,11 +6,14 @@ FIAP Global Solution 2026 - Applied Computer Vision.
 import os
 os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
 
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
 import numpy as np
 import streamlit as st
 from PIL import Image
 import tensorflow as tf
-from pathlib import Path
 
 # ============ CONFIGURACAO ============
 st.set_page_config(
@@ -19,6 +22,40 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded",
 )
+
+MODEL_PATH = Path(__file__).parent / 'modelo_final_piro.keras'
+BUILD_INFO_PATH = Path(__file__).parent / 'build_info.json'
+IMG_SIZE = (128, 128)
+THRESHOLD = 0.5
+
+# ============ BUILD INFO ============
+@st.cache_data
+def carregar_build_info() -> dict:
+    """Carrega metadata do build injetado pelo workflow GitHub Actions."""
+    if BUILD_INFO_PATH.exists():
+        try:
+            with open(BUILD_INFO_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+BUILD_INFO = carregar_build_info()
+
+# ============ HEALTH CHECK ============
+# Se a request veio com ?health=1, retorna status simples e termina.
+# Usado por Alert Rule do Application Insights pra monitorar disponibilidade real.
+query_params = st.query_params
+if query_params.get('health') == '1':
+    modelo_ok = MODEL_PATH.exists()
+    status = {
+        "status": "healthy" if modelo_ok else "degraded",
+        "model_loaded": modelo_ok,
+        "build": BUILD_INFO.get('commit_short', 'unknown'),
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+    st.json(status)
+    st.stop()
 
 MODEL_PATH = Path(__file__).parent / 'modelo_final_piro.keras'
 IMG_SIZE = (128, 128)
@@ -271,7 +308,22 @@ else:
 
 # ============ FOOTER ============
 st.divider()
-st.caption(
-    "PIRO · Global Solution 2026 · Engenharia de Software FIAP · "
-    "Modelo treinado do zero com TensorFlow/Keras"
-)
+
+# Rodape com build info pra rastreabilidade
+if BUILD_INFO:
+    build_short = BUILD_INFO.get('commit_short', 'dev')
+    build_branch = BUILD_INFO.get('branch', 'unknown')
+    build_run = BUILD_INFO.get('run_number', '?')
+    footer_text = (
+        f"PIRO · Global Solution 2026 · Engenharia de Software FIAP · "
+        f"build `{build_short}` (branch `{build_branch}`, run #{build_run}) · "
+        f"Modelo treinado do zero com TensorFlow/Keras"
+    )
+else:
+    footer_text = (
+        "PIRO · Global Solution 2026 · Engenharia de Software FIAP · "
+        "build local (sem build_info.json) · "
+        "Modelo treinado do zero com TensorFlow/Keras"
+    )
+
+st.caption(footer_text)

@@ -17,3 +17,6 @@ env/
 # Tamanho/sensível
 *.log
 .env
+
+# Build metadata - gerado pelo workflow CI/CD
+streamlit_app/build_info.json

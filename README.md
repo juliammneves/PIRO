@@ -365,7 +365,7 @@ A camada ACV inclui uma aplicação web em **Streamlit** que carrega o modelo es
 
 ### Acesso
 
-- **URL pública (Azure App Service):** _A preencher após deploy via SDTCC_
+- **URL pública (Azure App Service):** [piro-fire-detector.azurewebsites.net](https://piro-fire-detector.azurewebsites.net/)
 - **Código:** [`./streamlit_app/`](./streamlit_app/)
 
 ### Imagens recomendadas para teste
