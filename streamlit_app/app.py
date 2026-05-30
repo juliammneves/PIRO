@@ -48,9 +48,12 @@ BUILD_INFO = carregar_build_info()
 query_params = st.query_params
 if query_params.get('health') == '1':
     modelo_ok = MODEL_PATH.exists()
+    nasa_key = os.environ.get('NASA_FIRMS_API_KEY', '')
+    keyvault_ok = bool(nasa_key) and not nasa_key.startswith('@Microsoft.KeyVault')
     status = {
-        "status": "healthy" if modelo_ok else "degraded",
+        "status": "healthy" if (modelo_ok and keyvault_ok) else "degraded",
         "model_loaded": modelo_ok,
+        "keyvault_secret_resolved": keyvault_ok,
         "build": BUILD_INFO.get('commit_short', 'unknown'),
         "checked_at": datetime.now(timezone.utc).isoformat(),
     }
