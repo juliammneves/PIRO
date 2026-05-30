@@ -1,0 +1,90 @@
+name: Build and deploy Streamlit app to Azure Web App
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'streamlit_app/**'
+      - '.github/workflows/azure-deploy.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: piro-fire-detector 
+  AZURE_WEBAPP_PACKAGE_PATH: './streamlit_app'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/requirements.txt'
+
+      - name: Validate Python syntax
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          python -m py_compile app.py
+          echo "✓ Syntax check passed for app.py"
+
+      - name: Verify model artifact exists
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          if [ ! -f "modelo_final_piro.keras" ]; then
+            echo "::error::Model file modelo_final_piro.keras not found in streamlit_app/"
+            exit 1
+          fi
+          MODEL_SIZE=$(du -h modelo_final_piro.keras | cut -f1)
+          echo "✓ Model file present: $MODEL_SIZE"
+
+      - name: Verify startup script is executable
+        working-directory: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        run: |
+          chmod +x startup.sh
+          echo "✓ startup.sh marked executable"
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: streamlit-app
+          path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+          retention-days: 5
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: production
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: streamlit-app
+          path: ./streamlit-app
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./streamlit-app
+
+      - name: Deployment summary
+        run: |
+          echo "### 🚀 Deploy concluído com sucesso" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **App Service**: \`${{ env.AZURE_WEBAPP_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: ${{ steps.deploy-to-webapp.outputs.webapp-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
