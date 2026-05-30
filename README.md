@@ -7,7 +7,7 @@
 ---
 
 **Global Solution 2026 · 1º Semestre · FIAP**
-**Engenharia de Software · 4º Ano · Presencial**
+**Engenharia de Software · 4º Ano · ESPW · Presencial**
 **Tema:** Indústria Espacial — O Código que Move o Universo
 
 ---
